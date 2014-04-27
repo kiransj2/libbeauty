@@ -2574,6 +2574,19 @@ int build_tip_table(struct self_s *self, int entry_point, int node)
 			ret = 0;
 			break;
 
+		case JMP:
+			/* No value_id with JMP */
+			/* FIXME: Test the case where the operand is a register. */
+			/*        That will probably be the JMPT case */
+			ret = 0;
+			break;
+
+		case BC:
+			value_id = inst_log1->value1.value_id;
+			tmp = tip_add(self, entry_point, node, inst, 0, 1, value_id, 0, 1, instruction->srcA.value_size);
+			ret = 0;
+			break;
+
 		default:
 			debug_print(DEBUG_MAIN, 1, "build_tip_table failed for Inst:0x%x:0x%04x, OP 0x%x\n",
 				entry_point, inst, instruction->opcode);
@@ -4021,7 +4034,7 @@ int fill_reg_dependency_table(struct self_s *self, struct external_entry_point_s
 					external_entry_point->label_redirect[external_entry_point->variable_id].redirect = external_entry_point->variable_id;
 					external_entry_point->labels[external_entry_point->variable_id].scope = 2;
 					external_entry_point->labels[external_entry_point->variable_id].type = 1;
-					external_entry_point->labels[external_entry_point->variable_id].lab_pointer = 1;
+					external_entry_point->labels[external_entry_point->variable_id].lab_pointer = 0;
 					external_entry_point->labels[external_entry_point->variable_id].value = m;
 					external_entry_point->labels[external_entry_point->variable_id].size_bits =  nodes[n].used_register[m].size;
 					external_entry_point->param_reg_label[m] = external_entry_point->variable_id;
@@ -4047,8 +4060,34 @@ int fill_reg_dependency_table(struct self_s *self, struct external_entry_point_s
 	return 0;
 }
 
+/* Dump the labels table */
+int dump_labels_table(struct self_s *self, char *buffer)
+{
+	struct external_entry_point_s *external_entry_points = self->external_entry_points;
+	int l;
+	int n;
+	int tmp;
 
-
+	for (l = 0; l < EXTERNAL_ENTRY_POINTS_MAX; l++) {
+		if (external_entry_points[l].valid && external_entry_points[l].type == 1) {
+			for (n = 0x1; n < 0x130; n++) {
+				struct label_s *label;
+				tmp = external_entry_points[l].label_redirect[n].redirect;
+				label = &(external_entry_points[l].labels[tmp]);
+				if (label->scope) {
+					printf("Label 0x%x->0x%x:", n, tmp);
+					tmp = label_to_string(label, buffer, 1023);
+					printf("%s/0x%lx,ps=0x%lx, lp=0x%lx\n",
+						buffer,
+						label->size_bits,
+						label->pointer_type_size_bits,
+						label->lab_pointer);
+				}
+			}
+		}
+	}
+	return 0;
+}
 
 int main(int argc, char *argv[])
 {
@@ -4107,9 +4146,9 @@ int main(int argc, char *argv[])
 	debug_print(DEBUG_MAIN, 1, "Hello loops 0x%x\n", 2000);
 
 	if (argc != 2) {
-		debug_print(DEBUG_MAIN, 1, "Syntax error\n");
-		debug_print(DEBUG_MAIN, 1, "Usage: dis64 filename\n");
-		debug_print(DEBUG_MAIN, 1, "Where \"filename\" is the input .o file\n");
+		printf("Syntax error\n");
+		printf("Usage: dis64 filename\n");
+		printf("Where \"filename\" is the input .o file\n");
 		exit(1);
 	}
 	file = argv[1];
@@ -4332,12 +4371,12 @@ int main(int argc, char *argv[])
 						memory_reg[2].offset_value = entry_point[n].eip_offset_value;
 						inst_log_prev = entry_point[n].previous_instuction;
 						not_finished = 1;
-						debug_print(DEBUG_MAIN, 1, "LOGS: EIPinit = 0x%"PRIx64"\n", memory_reg[2].init_value);
+						debug_print(DEBUG_MAIN, 1, "LOGS: EIPinit   = 0x%"PRIx64"\n", memory_reg[2].init_value);
 						debug_print(DEBUG_MAIN, 1, "LOGS: EIPoffset = 0x%"PRIx64"\n", memory_reg[2].offset_value);
 						err = process_block(self, process_state, inst_log_prev, inst_size);
 						/* clear the entry after calling process_block */
 						if (err) {
-							debug_print(DEBUG_MAIN, 1, "process_block failed\n");
+							printf("process_block failed\n");
 							return err;
 						}
 						entry_point[n].used = 0;
@@ -4910,9 +4949,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-
-
-
 #if 0
 	for (n = 1; n <= nodes_size; n++) {
 		for (m = 0; m < MAX_REG; m++) {
@@ -5062,27 +5098,8 @@ int main(int argc, char *argv[])
 
 #endif
 	//print_dis_instructions(self);
-#if 1
-	/* Dump the labels table */
-	for (l = 0; l < EXTERNAL_ENTRY_POINTS_MAX; l++) {
-		if (external_entry_points[l].valid && external_entry_points[l].type == 1) {
-			for (n = 0x1; n < 0x130; n++) {
-				struct label_s *label;
-				tmp = external_entry_points[l].label_redirect[n].redirect;
-				label = &(external_entry_points[l].labels[tmp]);
-				if (label->scope) {
-					printf("Label 0x%x:", n);
-					tmp = label_to_string(label, buffer, 1023);
-					printf("%s/0x%lx,ps=0x%lx, lp=0x%lx\n",
-						buffer,
-						label->size_bits,
-						label->pointer_type_size_bits,
-						label->lab_pointer);
-				}
-			}
-		}
-	}
-#endif
+
+	dump_labels_table(self, buffer);
 
 	/************************************************************
 	 * This section deals with correcting SSA for branches/joins.

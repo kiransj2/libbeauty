@@ -330,7 +330,7 @@ int llvm::DecodeAsmX86_64::DecodeInstruction(uint8_t *Bytes,
 	StringRef Name;
 	StringRef Reg;
 	StringRef RegCL = "CL";
-	uint32_t value = 0;
+	uint64_t value = 0;
 	//DC->CommentStream.flush();
 	//StringRef Comments = DC->CommentsToEmit.str();
 
@@ -386,7 +386,7 @@ int llvm::DecodeAsmX86_64::DecodeInstruction(uint8_t *Bytes,
 				ll_inst->srcB.operand[0].value = value;
 				ll_inst->srcB.operand[0].size = dis_info->size[0] * 8;
 				ll_inst->srcB.operand[0].offset = dis_info->offset[0];
-				outs() << format("SRC0.0 Imm = 0x%x\n", value);
+				outs() << format("SRC0.0 Imm = 0x%lx\n", value);
 				outs() << format("SRC0.0 bytes at inst offset = 0x%x octets, size = 0x%x octets, value = 0x%x\n", dis_info->offset[0], dis_info->size[0], Bytes[dis_info->offset[0]]);
 			result = 0;
 			}
@@ -473,6 +473,14 @@ int llvm::DecodeAsmX86_64::DecodeInstruction(uint8_t *Bytes,
 				ll_inst->dstA.operand[0].size = helper_reg_table[reg_index].size;
 				ll_inst->dstA.operand[0].offset = 0;
 				outs() << format("DST0.0 Reg: value = 0x%x, ", value);
+				outs() << format("name = %s, ", helper_reg_table[reg_index].reg_name);
+				outs() << format("size = 0x%x, ", helper_reg_table[reg_index].size);
+				outs() << format("reg_number = 0x%x\n", helper_reg_table[reg_index].reg_number);
+				ll_inst->srcA.kind = KIND_REG;
+				ll_inst->srcA.operand[0].value = helper_reg_table[reg_index].reg_number;
+				ll_inst->srcA.operand[0].size = helper_reg_table[reg_index].size;
+				ll_inst->srcA.operand[0].offset = 0;
+				outs() << format("SRC0.0 Reg: value = 0x%x, ", value);
 				outs() << format("name = %s, ", helper_reg_table[reg_index].reg_name);
 				outs() << format("size = 0x%x, ", helper_reg_table[reg_index].size);
 				outs() << format("reg_number = 0x%x\n", helper_reg_table[reg_index].reg_number);

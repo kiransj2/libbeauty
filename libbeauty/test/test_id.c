@@ -562,6 +562,22 @@ struct test_data_s test_data[] = {
 		.inst[0] = "// 0x0000:CALL 0x12345678 ();",
 		.inst_size = 1,
 	},
+	{
+		.valid = 1,
+		// 7e e5                	jle    7 <test47+0x7>
+		.bytes = {0x7e, 0xe5},
+		.bytes_size = 2,
+		.inst[0] = "// 0x0000:IF   cond=15 JMP-REL=0xffffffffffffffe5",
+		.inst_size = 1,
+	},
+	{
+		.valid = 1,
+		// 39 c8                	cmp    %ecx,%eax
+		.bytes = {0x39, 0xc8},
+		.bytes_size = 2,
+		.inst[0] = "// 0x0000:CMPf r0x8/32, r0x10/32",
+		.inst_size = 1,
+	},
 };
 
 #define test_data_no sizeof(test_data) / sizeof(struct test_data_s)

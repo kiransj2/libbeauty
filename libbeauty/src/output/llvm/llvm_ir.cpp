@@ -431,6 +431,10 @@ int LLVM_ir_export::add_instruction(struct self_s *self, Module *mod, Value **va
 			label = &external_entry_point->labels[value_id_dst];
 			if (value_id) {
 				srcA = value[value_id];
+				if (!srcA) {
+					printf("LOAD failed: value_id = 0x%x\n", value_id);
+					exit(1);
+				}
 				tmp = label_to_string(label, buffer, 1023);
 				LoadInst* dstA_load = new LoadInst(srcA, buffer, false, bb[node]);
 				dstA_load->setAlignment(label->size_bits >> 3);
@@ -482,6 +486,8 @@ int LLVM_ir_export::add_instruction(struct self_s *self, Module *mod, Value **va
 		}
 		printf("srcA = %p, srcB = %p\n", srcA, srcB);
 		// FIXME: temporary comment out.
+		srcA->dump();
+		srcB->dump();
 		dstA = new StoreInst(srcA, srcB, false, bb[node]);
 		break;
 	case 0x2F:  // GEP1
@@ -514,6 +520,8 @@ int LLVM_ir_export::add_instruction(struct self_s *self, Module *mod, Value **va
 		}
 		srcB = value[value_id];
 		printf("srcA = %p, srcB = %p\n", srcA, srcB);
+		srcA->dump();
+		srcB->dump();
 		tmp = label_to_string(&external_entry_point->labels[inst_log1->value3.value_id], buffer, 1023);
 		dstA = GetElementPtrInst::Create(srcA, srcB, buffer, bb[node]);
 		value[inst_log1->value3.value_id] = dstA;
@@ -703,15 +711,22 @@ int LLVM_ir_export::output(struct self_s *self)
 				int size_bits;
 				/* local_stack */
 				if ((labels[m].scope == 1) && 
-					(labels[m].type == 2)) { 
+					(labels[m].type == 2)) {
 					size_bits = labels[m].size_bits;
 					/* FIXME: Make size_bits set correctly in the label */
 					//if (!size_bits) size_bits = 32;
 					printf("Creating alloca for label 0x%x, size_bits = 0x%x\n", m, size_bits);
 					tmp = label_to_string(&labels[m], buffer, 1023);
-					AllocaInst* ptr_local = new AllocaInst(IntegerType::get(mod->getContext(), size_bits), buffer, bb[1]);
-					ptr_local->setAlignment(size_bits >> 3);
-					value[m] = ptr_local;
+					if (labels[m].lab_pointer) {
+						PointerType* PointerTy_1 = PointerType::get(IntegerType::get(mod->getContext(), size_bits), 0);
+						AllocaInst* ptr_local = new AllocaInst(PointerTy_1, buffer, bb[1]);
+						ptr_local->setAlignment(size_bits >> 3);
+						value[m] = ptr_local;
+					} else {
+						AllocaInst* ptr_local = new AllocaInst(IntegerType::get(mod->getContext(), size_bits), buffer, bb[1]);
+						ptr_local->setAlignment(size_bits >> 3);
+						value[m] = ptr_local;
+					}
 				}
 			}
 				
@@ -725,15 +740,37 @@ int LLVM_ir_export::output(struct self_s *self)
 
 				/* Output PHI instructions first */
 				for (m = 0; m < nodes[node].phi_size; m++) {
-					int size_bits = labels[nodes[node].phi[m].value_id].size_bits;
-					printf("LLVM:phi 0x%x\n", m);
-					tmp = label_to_string(&labels[nodes[node].phi[m].value_id], buffer, 1023);
+					int value_id = nodes[node].phi[m].value_id;
+					int size_bits = labels[value_id].size_bits;
+					int value_id1;
+					int redirect_value_id;
+					int first_previous_node;
+					PHINode* phi_node;
+					printf("LLVM:phi 0x%x, value_id = 0x%x\n", m, value_id);
+					tmp = label_to_string(&labels[value_id], buffer, 1023);
 					printf("LLVM phi base size = 0x%x\n", size_bits);
-					PHINode* phi_node = PHINode::Create(IntegerType::get(mod->getContext(), size_bits),
-						nodes[node].phi[m].phi_node_size,
-						buffer, bb[node]);
+					if (labels[value_id].lab_pointer) {
+						PointerType* PointerTy_1 = PointerType::get(IntegerType::get(mod->getContext(), size_bits), 0);
+						phi_node = PHINode::Create(PointerTy_1,
+							nodes[node].phi[m].phi_node_size,
+							buffer, bb[node]);
+						value[value_id] = phi_node;
+					} else {
+						phi_node = PHINode::Create(IntegerType::get(mod->getContext(), size_bits),
+							nodes[node].phi[m].phi_node_size,
+							buffer, bb[node]);
+						value[value_id] = phi_node;
+					}
+					value_id1 = nodes[node].phi[m].phi_node[0].value_id;
+					redirect_value_id = label_redirect[value_id1].redirect;
+					first_previous_node = nodes[node].phi[m].phi_node[0].first_prev_node;
+					printf("LLVM phi value_id1 = 0x%x, fpn = 0x%x\n", redirect_value_id, first_previous_node);
+					value[value_id]->dump();
+					value[redirect_value_id]->dump();
+					if (redirect_value_id > 0) {
+						phi_node->addIncoming(value[redirect_value_id], bb[first_previous_node]);
+					}
 					/* The rest of the PHI instruction is added later */
-					value[nodes[node].phi[m].value_id] = phi_node;
 				}
 				LLVM_ir_export::add_node_instructions(self, mod, value, bb, node, n);
 			}
@@ -746,7 +783,8 @@ int LLVM_ir_export::output(struct self_s *self)
 					printf("LLVM:phi 0x%x\n", m);
 					printf("LLVM phi base size = 0x%x\n", size_bits);
 					PHINode* phi_node = (PHINode*)value[nodes[node].phi[m].value_id];
-					for (l = 0; l < nodes[node].phi[m].phi_node_size; l++) {
+					/* l = 0 has already been handled */
+					for (l = 1; l < nodes[node].phi[m].phi_node_size; l++) {
 						int value_id;
 						int redirect_value_id;
 						int first_previous_node;
