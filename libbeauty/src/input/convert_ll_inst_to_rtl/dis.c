@@ -404,7 +404,7 @@ int convert_base(struct self_s *self, struct instruction_low_level_s *ll_inst, i
 			convert_operand(self, ll_inst->address, scale_operand, 2, &(instruction->srcA));
 			convert_operand(self, ll_inst->address, scale_operand, 1, &(instruction->srcB));
 			/* Make the constant multiplier equal in width to the dstA */
-			instruction->srcB.value_size = ll_inst->dstA.size;
+			instruction->srcB.value_size = operand_reg_tmp1.size;
 			convert_operand(self, ll_inst->address, &operand_reg_tmp1, 0, &(instruction->dstA));
 			dis_instructions->instruction_number++;
 			previous_operand = &operand_reg_tmp1;
@@ -756,12 +756,21 @@ int convert_ll_inst_to_rtl(struct self_s *self, struct instruction_low_level_s *
 		dis_instructions->instruction_number++;
 		result = 0;
 		break;
-	case CALL: /* non-relative */ 
+	case CALL: /* non-relative */
+		/* srcA = call target.
+		 * srcB = ESP.
+		 */
 		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];	
 		instruction->opcode = CALL;
 		instruction->flags = 0;
 		/* Note: ll_inst->srcB due to the way opcode_form == 1 is processed. */
 		convert_operand(self, ll_inst->address, &(ll_inst->srcB), 0, &(instruction->srcA));
+		instruction->srcB.store = STORE_REG;
+		instruction->srcB.indirect = IND_DIRECT;
+		instruction->srcB.indirect_size = 64;
+		instruction->srcB.index = REG_SP;
+		instruction->srcB.relocated = 0;
+		instruction->srcB.value_size = 64;
 		instruction->dstA.store = STORE_REG;
 		instruction->dstA.indirect = IND_DIRECT;
 		instruction->dstA.indirect_size = 64;
@@ -771,11 +780,21 @@ int convert_ll_inst_to_rtl(struct self_s *self, struct instruction_low_level_s *
 		dis_instructions->instruction_number++;
 		result = 0;
 		break;
-	case CALLM: /* indirect */ 
+	case CALLM: /* indirect */
+		/* srcA = target
+		 * srcB = ESP
+		 * dstA = EAX
+		 */
 		ll_inst->opcode = CALL;
 		tmp  = convert_base(self, ll_inst, 0, dis_instructions);
 		result = tmp;
 		instruction = &dis_instructions->instruction[dis_instructions->instruction_number -  1];
+		instruction->srcB.store = STORE_REG;
+		instruction->srcB.indirect = IND_DIRECT;
+		instruction->srcB.indirect_size = 64;
+		instruction->srcB.index = REG_SP;
+		instruction->srcB.relocated = 0;
+		instruction->srcB.value_size = 64;
 		instruction->dstA.store = STORE_REG;
 		instruction->dstA.indirect = IND_DIRECT;
 		instruction->dstA.indirect_size = 64;
@@ -1360,6 +1379,192 @@ int convert_ll_inst_to_rtl(struct self_s *self, struct instruction_low_level_s *
 		}
 		result = 0;
 		break;
+	case IMULD:
+		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];	
+		instruction->opcode = SEX;
+		instruction->flags = 0;
+		convert_operand(self, ll_inst->address, &(ll_inst->srcA), 0, &(instruction->srcA));
+		instruction->srcA.value_size = 32;
+		convert_operand(self, ll_inst->address, &(ll_inst->srcA), 0, &(instruction->dstA));
+		instruction->dstA.value_size = 64;
+		dis_instructions->instruction_number++;
+
+		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];
+		instruction->opcode = SEX;
+		instruction->flags = 0;
+		instruction->srcA.store = STORE_REG;
+		instruction->srcA.indirect = IND_DIRECT;
+		instruction->srcA.indirect_size = 32;
+		instruction->srcA.index = REG_AX;
+		instruction->srcA.relocated = 0;
+		instruction->srcA.value_size = 32;
+		instruction->dstA.store = STORE_REG;
+		instruction->dstA.indirect = IND_DIRECT;
+		instruction->dstA.indirect_size = 64;
+		instruction->dstA.index = REG_AX;
+		instruction->dstA.relocated = 0;
+		instruction->dstA.value_size = 64;
+		dis_instructions->instruction_number++;
+
+		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];
+		instruction->opcode = MUL;
+		instruction->flags = 1;
+		instruction->srcA.store = STORE_REG;
+		instruction->srcA.indirect = IND_DIRECT;
+		instruction->srcA.indirect_size = 64;
+		instruction->srcA.index = REG_AX;
+		instruction->srcA.relocated = 0;
+		instruction->srcA.value_size = 64;
+		convert_operand(self, ll_inst->address, &(ll_inst->srcA), 0, &(instruction->srcB));
+		instruction->srcB.value_size = 64;
+		instruction->dstA.store = STORE_REG;
+		instruction->dstA.indirect = IND_DIRECT;
+		instruction->dstA.indirect_size = 64;
+		instruction->dstA.index = REG_AX;
+		instruction->dstA.relocated = 0;
+		instruction->dstA.value_size = 64;
+		dis_instructions->instruction_number++;
+
+		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];
+		instruction->opcode = SAR;
+		instruction->flags = 0;
+		instruction->srcA.store = STORE_REG;
+		instruction->srcA.indirect = IND_DIRECT;
+		instruction->srcA.indirect_size = 64;
+		instruction->srcA.index = REG_AX;
+		instruction->srcA.relocated = 0;
+		instruction->srcA.value_size = 64;
+		instruction->srcB.store = STORE_DIRECT;
+		instruction->srcB.indirect = IND_DIRECT;
+		instruction->srcB.indirect_size = 64;
+		instruction->srcB.index = 32;
+		instruction->srcB.relocated = 0;
+		instruction->srcB.value_size = 64;
+		convert_operand(self, ll_inst->address, &(ll_inst->srcA), 0, &(instruction->dstA));
+		instruction->dstA.value_size = 64;
+		dis_instructions->instruction_number++;
+
+		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];
+		instruction->opcode = TRUNC;
+		instruction->flags = 0;
+		instruction->srcA.store = STORE_REG;
+		instruction->srcA.indirect = IND_DIRECT;
+		instruction->srcA.indirect_size = 64;
+		instruction->srcA.index = REG_AX;
+		instruction->srcA.relocated = 0;
+		instruction->srcA.value_size = 64;
+		instruction->dstA.store = STORE_REG;
+		instruction->dstA.indirect = IND_DIRECT;
+		instruction->dstA.indirect_size = 32;
+		instruction->dstA.index = REG_AX;
+		instruction->dstA.relocated = 0;
+		instruction->dstA.value_size = 32;
+		dis_instructions->instruction_number++;
+
+		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];
+		instruction->opcode = TRUNC;
+		instruction->flags = 0;
+		convert_operand(self, ll_inst->address, &(ll_inst->srcA), 0, &(instruction->srcA));
+		instruction->srcA.value_size = 64;
+		convert_operand(self, ll_inst->address, &(ll_inst->srcA), 0, &(instruction->dstA));
+		instruction->dstA.value_size = 32;
+		dis_instructions->instruction_number++;
+		result = 0;
+		break;
+
+	case MULD:
+		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];	
+		instruction->opcode = MOV;
+		instruction->flags = 0;
+		convert_operand(self, ll_inst->address, &(ll_inst->srcA), 0, &(instruction->srcA));
+		instruction->srcA.value_size = 32;
+		convert_operand(self, ll_inst->address, &(ll_inst->srcA), 0, &(instruction->dstA));
+		instruction->dstA.value_size = 64;
+		dis_instructions->instruction_number++;
+
+		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];
+		instruction->opcode = MOV;
+		instruction->flags = 0;
+		instruction->srcA.store = STORE_REG;
+		instruction->srcA.indirect = IND_DIRECT;
+		instruction->srcA.indirect_size = 32;
+		instruction->srcA.index = REG_AX;
+		instruction->srcA.relocated = 0;
+		instruction->srcA.value_size = 32;
+		instruction->dstA.store = STORE_REG;
+		instruction->dstA.indirect = IND_DIRECT;
+		instruction->dstA.indirect_size = 64;
+		instruction->dstA.index = REG_AX;
+		instruction->dstA.relocated = 0;
+		instruction->dstA.value_size = 64;
+		dis_instructions->instruction_number++;
+
+		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];
+		instruction->opcode = MUL;
+		instruction->flags = 1;
+		instruction->srcA.store = STORE_REG;
+		instruction->srcA.indirect = IND_DIRECT;
+		instruction->srcA.indirect_size = 64;
+		instruction->srcA.index = REG_AX;
+		instruction->srcA.relocated = 0;
+		instruction->srcA.value_size = 64;
+		convert_operand(self, ll_inst->address, &(ll_inst->srcA), 0, &(instruction->srcB));
+		instruction->srcB.value_size = 64;
+		instruction->dstA.store = STORE_REG;
+		instruction->dstA.indirect = IND_DIRECT;
+		instruction->dstA.indirect_size = 64;
+		instruction->dstA.index = REG_AX;
+		instruction->dstA.relocated = 0;
+		instruction->dstA.value_size = 64;
+		dis_instructions->instruction_number++;
+
+		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];
+		instruction->opcode = SAR;
+		instruction->flags = 0;
+		instruction->srcA.store = STORE_REG;
+		instruction->srcA.indirect = IND_DIRECT;
+		instruction->srcA.indirect_size = 64;
+		instruction->srcA.index = REG_AX;
+		instruction->srcA.relocated = 0;
+		instruction->srcA.value_size = 64;
+		instruction->srcB.store = STORE_DIRECT;
+		instruction->srcB.indirect = IND_DIRECT;
+		instruction->srcB.indirect_size = 64;
+		instruction->srcB.index = 32;
+		instruction->srcB.relocated = 0;
+		instruction->srcB.value_size = 64;
+		convert_operand(self, ll_inst->address, &(ll_inst->srcA), 0, &(instruction->dstA));
+		instruction->dstA.value_size = 64;
+		dis_instructions->instruction_number++;
+
+		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];
+		instruction->opcode = TRUNC;
+		instruction->flags = 0;
+		instruction->srcA.store = STORE_REG;
+		instruction->srcA.indirect = IND_DIRECT;
+		instruction->srcA.indirect_size = 64;
+		instruction->srcA.index = REG_AX;
+		instruction->srcA.relocated = 0;
+		instruction->srcA.value_size = 64;
+		instruction->dstA.store = STORE_REG;
+		instruction->dstA.indirect = IND_DIRECT;
+		instruction->dstA.indirect_size = 32;
+		instruction->dstA.index = REG_AX;
+		instruction->dstA.relocated = 0;
+		instruction->dstA.value_size = 32;
+		dis_instructions->instruction_number++;
+
+		instruction = &dis_instructions->instruction[dis_instructions->instruction_number];
+		instruction->opcode = TRUNC;
+		instruction->flags = 0;
+		convert_operand(self, ll_inst->address, &(ll_inst->srcA), 0, &(instruction->srcA));
+		instruction->srcA.value_size = 64;
+		convert_operand(self, ll_inst->address, &(ll_inst->srcA), 0, &(instruction->dstA));
+		instruction->dstA.value_size = 32;
+		dis_instructions->instruction_number++;
+		result = 0;
+		break;
+
 	default:
 		debug_print(DEBUG_INPUT_DIS, 1, "convert: Unrecognised opcode %x\n", ll_inst->opcode);
 		result = 1;

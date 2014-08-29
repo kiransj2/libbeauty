@@ -38,6 +38,8 @@ int reg_params_order[] = {
         REG_09 /* R09 */
 };
 
+int reg_params_order_size = sizeof(reg_params_order) / sizeof(int);
+
 const char * opcode_table[] = {
 	"NONE",   // 0x00
 	"MOV",   // 0x01
@@ -87,6 +89,13 @@ const char * opcode_table[] = {
 	"LEAVE",  // 0x2D
 	"NOP",  // 0x2E
 	"GEP1",  // 0x2F
+	"CALLM",  // 0x30
+	"SETCC",  // 0x31
+	"JMPM",   // 0x32
+	"MOVS",   // 0x33
+	"IMULD",  // 0x34
+	"MULD",  // 0x35
+	"TRUNC",  // 0x36
 };
 
 char *store_table[] = { "i", "r", "m", "s" };
@@ -376,6 +385,7 @@ int write_inst(struct self_s *self, struct string_s *string, struct instruction_
 	case JMPT:
 		if (instruction->srcA.indirect) {
 			debug_print(DEBUG_OUTPUT, 1, "JMPT 0x%x 0x%x 0x%x\n", instruction->srcA.indirect, instruction->srcA.store, instruction->srcA.value_size);
+			/* FIXME: This processing should not be in an output function. It should be in the EXE function. */
 			if (instruction->srcA.indirect > 4) {
 				instruction->srcA.indirect = 0;
 			}
@@ -426,6 +436,8 @@ int write_inst(struct self_s *self, struct string_s *string, struct instruction_
 		ret = 0;
 		break;
 	case CALL:
+#if 0
+		/* FIXME: This processing should not be in an output function. It should be in the EXE function. */
 		if (instruction->srcA.relocated == 2) {
 			for (n = 0; n < EXTERNAL_ENTRY_POINTS_MAX; n++) {
 				if ((external_entry_points[n].valid != 0) &&
@@ -438,49 +450,55 @@ int write_inst(struct self_s *self, struct string_s *string, struct instruction_
 				}
 			}
 		}
+#endif
 		if ((instruction->srcA.indirect == IND_DIRECT) &&
 			(instruction->srcA.relocated == 1)) {
-				tmp = snprintf(buffer, 1023, " CALL2 0x%"PRIx64":%s(",
-					instruction->srcA.index,
-					external_entry_points[instruction->srcA.index].name);
-			
+			tmp = snprintf(buffer, 1023, " CALL2 0x%"PRIx64":%s(",
+				instruction->srcA.index,
+				external_entry_points[instruction->srcA.index].name);
 			tmp = string_cat(string, buffer, strlen(buffer));
 			tmp_state = 0;
 			l = instruction->srcA.index;
-			for (n = 0; n < external_entry_points[l].params_size; n++) {
+			for (n = 0; n < external_entry_points[l].reg_params_size; n++) {
 				struct label_s *label;
-				label = &labels[external_entry_points[l].params[n]];
+				label = &labels[external_entry_points[l].param_reg_label[reg_params_order[n]]];
 				debug_print(DEBUG_OUTPUT, 1, "reg_params_order = 0x%x, label->value = 0x%"PRIx64"\n", reg_params_order[n], label->value);
 				if ((label->scope == 2) &&
 					(label->type == 1)) {
 					if (tmp_state > 0) {
 						snprintf(buffer, 1023, ", ");
+						tmp = string_cat(string, buffer, strlen(buffer));
 					}
 					snprintf(buffer, 1023, "int%"PRId64"_t ",
 						label->size_bits);
+					tmp = string_cat(string, buffer, strlen(buffer));
 					tmp = label_to_string(label, buffer, 1023);
-					tmp = snprintf(buffer, 1023, "%s", buffer);
+					//tmp = snprintf(buffer, 1023, "%s", buffer);
+					tmp = string_cat(string, buffer, strlen(buffer));
 					tmp_state++;
 				}
 			}
-			for (n = 0; n < external_entry_points[l].params_size; n++) {
+			for (n = 0; n < external_entry_points[l].reg_params_size; n++) {
 				struct label_s *label;
-				label = &labels[external_entry_points[l].params[n]];
+				label = &labels[external_entry_points[l].param_reg_label[reg_params_order[n]]];
 				if ((label->scope == 2) &&
 					(label->type == 1)) {
 					continue;
 				}
 				if (tmp_state > 0) {
 					snprintf(buffer, 1023, ", ");
+					tmp = string_cat(string, buffer, strlen(buffer));
 				}
 				snprintf(buffer, 1023, "int%"PRId64"_t ",
 					label->size_bits);
 				tmp = string_cat(string, buffer, strlen(buffer));
 				tmp = label_to_string(label, buffer, 1023);
-				tmp = snprintf(buffer, 1023, "%s", buffer);
+				//tmp = snprintf(buffer, 1023, "%s", buffer);
+				tmp = string_cat(string, buffer, strlen(buffer));
 				tmp_state++;
 			}
 			tmp = snprintf(buffer, 1023, ");");
+			tmp = string_cat(string, buffer, strlen(buffer));
 		} else if (instruction->srcA.indirect == IND_MEM) {
 			tmp = snprintf(buffer, 1023, "(*r0x%"PRIx64") ();", 
 				instruction->srcA.index);
@@ -504,6 +522,25 @@ int write_inst(struct self_s *self, struct string_s *string, struct instruction_
 		break;
 	case RET:
 		//tmp = snprintf(buffer, 1023, "");
+		ret = 0;
+		break;
+	case TRUNC:
+		if (instruction->srcA.indirect ||
+			(instruction->dstA.indirect)) {
+			ret = 1;
+			break;
+		}
+		tmp = snprintf(buffer, 1023, " %s0x%"PRIx64"/%d,",
+			store_table[instruction->srcA.store],
+			instruction->srcA.index,
+			instruction->srcA.value_size);
+		tmp = string_cat(string, buffer, strlen(buffer));
+
+		tmp = snprintf(buffer, 1023, " %s0x%"PRIx64"/%d",
+			store_table[instruction->dstA.store],
+			instruction->dstA.index,
+			instruction->dstA.value_size);
+		tmp = string_cat(string, buffer, strlen(buffer));
 		ret = 0;
 		break;
 	default:

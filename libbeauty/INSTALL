@@ -21,15 +21,12 @@ Steps to install libbeauty:
 
 2. cd to the llvm directory.
 
-3. Compile the llvm library as a shared library
- $ ./configure --enable-shared
+3. Compile the llvm library as a shared library. Don't use ./configure, use cmake. Only cmake creates the correct shared libraries.
+ $ cmake -DBUILD_SHARED_LIBS:BOOL=ON /path/to/llvm
  $ make
 
 4. Install methods:
 a) make install
-b) Copy the shared library Debug+Asserts/lib/libLLVM-3.5svn.so to
- /usr/lib/libLLVM-3.5svn.so (32-bit system)
- /usr/lib64/libLLVM-3.5svn.so (64-bit system)
 
 5. Download the libbeauty source:
 Methods:
@@ -64,19 +61,20 @@ After a clean compilation and install, the libraries should be located at:
 9. Testing.
    $ cd test
 
-First run "./test_case".
+First run "./test_case tests/ tests/test-disassembler-callback.txt".
 This should output:
 NumOperands = 0x0, Offset = 0x3, Size = 0x1
-Test passed
 
-If it does not say test passed, libbeauty will not work.
+If it does not, libbeauty will not work.
 To fix the test, you need to apply the "fix-wrong-displacementSize.diff"
 to the llvm source (not the libbeauty source) and compile and install llvm again.
 The test "./test_case" should now pass.
 
-Next run "./test_id"
+Next run "./test_id tests/id01.txt"
 It should report:
-ALL TESTS PASSED!
+getInstruction Size = 0x2
+result: len=41:// 0x0000:ADDf r0x8/32, r0x40/32, r0x8/32
+inst_size = 1
 
 You can now try out libbeauty.
 e.g.
@@ -88,5 +86,5 @@ The will create .dot files in the ./test/cfg directory that look a bit like C co
 
 dis64 is a currently a work in progress demonstration of the libbeauty library. It takes a .o file, and uses libbeauty to process it.
 
-Soon, LLVM IR files will also be created, but that is work in progress right now, so the output to LLVM IR has been disabled for now.
+LLVM IR files will also be created. LLVM IR output is still work in progress, the the output might not always work.
 

@@ -5,7 +5,7 @@ uint64_t test78 (uint64_t);
 
 uint64_t test78 (uint64_t value ) {
 	uint64_t rel64;
-	rel64 = value * 7;
+	rel64 = value * 17;
 	return rel64;
 }
 

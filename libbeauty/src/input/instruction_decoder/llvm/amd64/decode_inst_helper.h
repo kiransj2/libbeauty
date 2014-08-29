@@ -52,6 +52,7 @@ const char * helper_opcode_table[] = {
 	"H_SETCC",  // 0x31
 	"H_JMPM",  // 0x32
 	"H_MOVS",  // 0x33
+	"H_IMULD",  // 0x34
 };
 
 #define H_NONE 0x00 // Used for instructions we have not implemented support for yet.
@@ -106,6 +107,8 @@ const char * helper_opcode_table[] = {
 #define H_SETCC 0x31 /* Set conditional */
 #define H_JMPM 0x32 /* JMP indirect */
 #define H_MOVS 0x33 /* MOVS strings */
+#define H_IMULD 0x34 /* IMUL with EDX,EAX desinations for opcode_form 0x15 */
+#define H_MULD 0x35 /* MUL with EDX,EAX desinations for opcode_form 0x14 */
 
 const char * helper_predicate_table[] = {
 	"H_NONE",
@@ -197,10 +200,31 @@ struct helper_reg_table_s helper_reg_table[] = {
 	{"%r14d", 32, REG_14},
 	{"%r15d", 32, REG_15},
 	{"%xmm0", 128, REG_XMM0},
-	{"%dl", 8, REG_DX},
-	{"%sil", 8, REG_SI},
-	{"%ax", 16, REG_AX},
 	{"%al", 8, REG_AX},
+	{"%dl", 8, REG_DX},
+	{"%bl", 8, REG_BX},
+	{"%sil", 8, REG_SI},
+	{"%dil", 8, REG_DI},
+	{"%r8b", 8, REG_08},
+	{"%r9b", 8, REG_09},
+	{"%r10b", 8, REG_10},
+	{"%r11b", 8, REG_11},
+	{"%r12b", 8, REG_12},
+	{"%r13b", 8, REG_13},
+	{"%r14b", 8, REG_14},
+	{"%r15b", 8, REG_15},
+	{"%ax", 16, REG_AX},
+	{"%cx", 16, REG_CX},
+	{"%dx", 16, REG_DX},
+	{"%bx", 16, REG_BX},
+	{"%r8w", 16, REG_08},
+	{"%r9w", 16, REG_09},
+	{"%r10w", 16, REG_10},
+	{"%r11w", 16, REG_11},
+	{"%r12w", 16, REG_12},
+	{"%r13w", 16, REG_13},
+	{"%r14w", 16, REG_14},
+	{"%r15w", 16, REG_15},
 };
 
 struct decode_inst_helper_s {
@@ -1093,7 +1117,7 @@ struct decode_inst_helper_s decode_inst_helper[] = {
 	{ H_IMUL, 0x0, 0x10, 0x10, 0x10, 0x0, 0x0, "IMUL16rri" },  // 0x036a
 	{ H_IMUL, 0x0, 0x10, 0x10, 0x10, 0x0, 0x0, "IMUL16rri8" },  // 0x036b
 	{ H_IMUL, 0x0, 0x20, 0x20, 0x20, 0x0, 0x0, "IMUL32m" },  // 0x036c
-	{ H_IMUL, 0x0, 0x20, 0x20, 0x20, 0x0, 0x0, "IMUL32r" },  // 0x036d
+	{ H_IMULD, 0x0, 0x20, 0x20, 0x20, 0x0, 0x0, "IMUL32r" },  // 0x036d
 	{ H_IMUL, 0x0, 0x20, 0x20, 0x20, 0x0, 0x0, "IMUL32rm" },  // 0x036e
 	{ H_IMUL, 0x0, 0x20, 0x20, 0x20, 0x0, 0x0, "IMUL32rmi" },  // 0x036f
 	{ H_IMUL, 0x0, 0x20, 0x20, 0x20, 0x0, 0x0, "IMUL32rmi8" },  // 0x0370
@@ -1893,7 +1917,7 @@ struct decode_inst_helper_s decode_inst_helper[] = {
 	{ H_MUL, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, "MUL16m" },  // 0x068a
 	{ H_MUL, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, "MUL16r" },  // 0x068b
 	{ H_MUL, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, "MUL32m" },  // 0x068c
-	{ H_MUL, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, "MUL32r" },  // 0x068d
+	{ H_MULD, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, "MUL32r" },  // 0x068d
 	{ H_MUL, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, "MUL64m" },  // 0x068e
 	{ H_MUL, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, "MUL64r" },  // 0x068f
 	{ H_MUL, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, "MUL8m" },  // 0x0690

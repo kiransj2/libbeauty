@@ -8,6 +8,6 @@ int test13() {
 	loop:
 		local1++;
 	goto loop;
-	return;
+	return 0;
 }
 

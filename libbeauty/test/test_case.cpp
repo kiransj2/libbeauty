@@ -186,10 +186,10 @@ int main(int argc, char *argv[])
 			i++;
 		}
 
-		LLVMInitializeAllTargetInfos();
-		LLVMInitializeAllTargetMCs();
-		LLVMInitializeAllAsmParsers();
-		LLVMInitializeAllDisassemblers();
+		LLVMInitializeX86TargetInfo();
+		LLVMInitializeX86TargetMC();
+		LLVMInitializeX86AsmParser();
+		LLVMInitializeX86Disassembler();
 
 		struct dis_info_s *dis_info = LLVMCreateDisInfo();
 		DC = LLVMCreateDisasm("x86_64-pc-linux-gnu", dis_info,

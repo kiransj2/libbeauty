@@ -73,7 +73,7 @@ int build_reg_table() {
 		return 6;
 
 	// Set up disassembler.
-	MCDisassembler *DisAsm = TheTarget->createMCDisassembler(*STI);
+	MCDisassembler *DisAsm = TheTarget->createMCDisassembler(*STI, *Ctx);
 	if (!DisAsm)
 		return 7;
 
@@ -84,9 +84,9 @@ int build_reg_table() {
 
 	LLVMOpInfoCallback GetOpInfo = NULL;
 	void *DisInfo = NULL;
-	OwningPtr<MCSymbolizer> Symbolizer(
-		TheTarget->createMCSymbolizer(TripleName, GetOpInfo, SymbolLookUp, DisInfo,
-			Ctx, RelInfo.take()));
+	//OwningPtr<MCSymbolizer> Symbolizer(
+	//	TheTarget->createMCSymbolizer(TripleName, GetOpInfo, SymbolLookUp, DisInfo,
+	//		Ctx, RelInfo.take()));
 	//DisAsm->setSymbolizer(Symbolizer);
 	//DisAsm->setupForSymbolicDisassembly(GetOpInfo, SymbolLookUp, DisInfo, Ctx, RelInfo);
 

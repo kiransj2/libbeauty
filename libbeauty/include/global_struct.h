@@ -260,13 +260,24 @@ struct external_entry_point_s {
 	struct process_state_s process_state;
 	char *name;
 	/* FIXME: Handle variable amount of params */
+	/* param types are stored in the label */
 	int params_size;
 	int *params;
-	int *params_order;
+	/* params_reg_ordered_size holds the number of register params in reg_params_order[] order */ 
+	int params_reg_ordered_size;
+	/* params_reg_ordered holds the label for each reg param ordered per reg_params_order[] */ 
+	int *params_reg_ordered;
+	/* params_stack_ordered_size holds the number of stack params */ 
+	int params_stack_ordered_size;
+	int *params_stack_ordered;
+	/* reg_params_size holds the number of register params as per reg_params_order[] */ 
+	int reg_params_size;
 	int param_reg_label[MAX_REG];
 	int locals_size;
 	int *locals;
 	int *locals_order;
+	/* The function returns a type. This is identified by the label used. */
+	int returned_label;
 	int start_node;
 	int paths_size;
 	struct path_s *paths;
@@ -414,6 +425,18 @@ struct instruction_s {
 	struct operand_s srcB; /* E.g. C */
 	struct operand_s dstA; /* E.g. A */
 } ;
+
+struct extension_call_s {
+	int reg_tracker[MAX_REG];
+	/* params passed by register */
+	int params_reg_size;
+	int *params_reg;
+	/* stack_offset at the call. Use to calculate the param_stack values */
+	uint64_t stack_offset;
+	/* params passed by stack */
+	int params_stack_size;
+	uint64_t *params_stack;
+};
 
 struct inst_log_entry_s {
 	struct instruction_s instruction;	/* The instruction */

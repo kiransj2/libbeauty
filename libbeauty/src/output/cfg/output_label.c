@@ -334,6 +334,10 @@ int if_expression( int condition, struct inst_log_entry_s *inst_log1_flagged,
 		case IND_DIRECT:
 			value_id = inst_log1_flagged->value2.value_id;
 			break;
+		default:
+			debug_print(DEBUG_OUTPUT, 1, "ERROR invalid srcB.indirect 0x%x\n",inst_log1_flagged->instruction.srcB.indirect);
+			exit(1);
+			break;
 		}
 		if (STORE_DIRECT == inst_log1_flagged->instruction.srcB.store) {
 			tmp = dprintf(fd, "0x%"PRIx64, inst_log1_flagged->instruction.srcB.index);
@@ -496,9 +500,9 @@ uint32_t output_function_name(int fd,
 {
 	int tmp;
 
-	debug_print(DEBUG_OUTPUT, 1, "int %s()\n{\n", external_entry_point->name);
+	debug_print(DEBUG_OUTPUT, 1, "%s()\n{\n", external_entry_point->name);
 	debug_print(DEBUG_OUTPUT, 1, "value = %"PRIx64"\n", external_entry_point->value);
-	tmp = dprintf(fd, "int %s(", external_entry_point->name);
+	tmp = dprintf(fd, "%s(", external_entry_point->name);
 	return 0;
 }
 
@@ -563,6 +567,7 @@ int output_inst_in_c(struct self_s *self, struct process_state_s *process_state,
 	struct inst_log_entry_s *inst_log_entry = self->inst_log_entry;
 	struct external_entry_point_s *external_entry_points = self->external_entry_points;
 	struct label_s *label;
+	struct extension_call_s *call;
 	char buffer[1024];
 	struct string_s string1;
 	string1.len = 0;
@@ -745,6 +750,10 @@ int output_inst_in_c(struct self_s *self, struct process_state_s *process_state,
 				break;
 			case IND_DIRECT:
 				value_id = inst_log1->value3.value_id;
+				break;
+			default:
+				debug_print(DEBUG_OUTPUT, 1, "ERROR invalid dstA.indirect 0x%x\n", instruction->dstA.indirect);
+				exit(1);
 				break;
 			}
 			tmp = label_redirect[value_id].redirect;
@@ -1077,7 +1086,6 @@ int output_inst_in_c(struct self_s *self, struct process_state_s *process_state,
 			tmp = dprintf(fd, ";%s",cr);
 			break;
 		case CALL:
-			/* FIXME: This does nothing at the moment. */
 			if (print_inst(self, instruction, inst_number, labels)) {
 				tmp = dprintf(fd, "exiting1\n");
 				return 1;
@@ -1100,17 +1108,12 @@ int output_inst_in_c(struct self_s *self, struct process_state_s *process_state,
 			if (IND_DIRECT == instruction->srcA.indirect) {
 				/* A direct call */
 				/* FIXME: Get the output right */
+				call = inst_log1->extension;
+				if (!call) {
+					printf("ERROR: call is NULL\n");
+					exit(1);
+				}
 				if (1 == instruction->srcA.relocated && inst_log1->extension) {
-					struct extension_call_s *call;
-					call = inst_log1->extension;
-					if (!call) {
-						printf("call is NULL\n");
-						exit(1);
-					}
-						
-					//tmp = dprintf(fd, "%s(%d:", 
-					//	external_entry_points[instruction->srcA.index].name,
-					//	external_entry_points[instruction->srcA.index].params_size);
 					if (STORE_DIRECT == instruction->srcA.store) {
 						tmp = dprintf(fd, "%s(", 
 							external_entry_points[instruction->srcA.index].name);
@@ -1124,60 +1127,35 @@ int output_inst_in_c(struct self_s *self, struct process_state_s *process_state,
 					}
 
 					tmp_state = 0;
-					for (n2 = 0; n2 < call->params_size; n2++) {
+					for (n2 = 0; n2 < call->params_reg_size; n2++) {
 						struct label_s *label;
-						tmp = label_redirect[call->params[n2]].redirect;
+						tmp = label_redirect[call->params_reg[n2]].redirect;
 						label = &labels[tmp];
-						//debug_print(DEBUG_OUTPUT, 1, "reg_params_order = 0x%x, label->value = 0x%"PRIx64"\n", reg_params_order[m], label->value);
-						//if ((label->scope == 2) &&
-						//	(label->type == 1)) {
 						if (tmp_state > 0) {
 							dprintf(fd, ", ");
 						}
-						//dprintf(fd, "int%"PRId64"_t ",
-						//	label->size_bits);
 						tmp = label_to_string(label, buffer, 1023);
 						tmp = dprintf(fd, "%s", buffer);
 						tmp_state++;
-					//	}
 					}
-#if 0
-					for (n2 = 0; n2 < external_entry_points[l].params_size; n2++) {
-						struct label_s *label;
-						label = &labels[external_entry_points[l].params[n2]];
-						if ((label->scope == 2) &&
-							(label->type == 1)) {
-							continue;
-						}
+					for (n2 = 0; n2 < call->params_stack_size; n2++) {
+						uint64_t offset;
 						if (tmp_state > 0) {
 							dprintf(fd, ", ");
 						}
-						dprintf(fd, "int%"PRId64"_t ",
-						label->size_bits);
-						tmp = output_label(label, fd);
+						offset = call->params_stack[n2];
+						if (offset >= inst_log1->value2.offset_value) {
+							dprintf(fd, "param_stack%4"PRIx64,
+							inst_log1->value2.offset_value - offset);
+						} else {
+							dprintf(fd, "local_stack_EIP");
+						}
 						tmp_state++;
 					}
-#endif
 					tmp = dprintf(fd, ");%s", cr);
 				} else {
 					tmp = dprintf(fd, "CALL1()%s", cr);
 				}
-#if 0
-				/* FIXME: JCD test disabled */
-				call = inst_log1->extension;
-				if (call) {
-					for (l = 0; l < call->params_size; l++) {
-						if (l > 0) {
-							dprintf(fd, ", ");
-						}
-						label = &labels[call->params[l]];
-						tmp = output_label(label, fd);
-					}
-				}
-#endif
-				//tmp = dprintf(fd, ");\n");
-				//debug_print(DEBUG_OUTPUT, 1, "%s();\n",
-				//	external_entry_points[instruction->srcA.index].name);
 			} else {
 				/* A indirect call via a function pointer or call table. */
 				tmp = dprintf(fd, "(*");
@@ -1187,8 +1165,6 @@ int output_inst_in_c(struct self_s *self, struct process_state_s *process_state,
 				tmp = dprintf(fd, "%s", buffer);
 				tmp = dprintf(fd, ") ()%s", cr);
 			}
-//			tmp = dprintf(fd, "/* call(); */\n");
-//			debug_print(DEBUG_OUTPUT, 1, "/* call(); */\n");
 			break;
 
 		case CMP:

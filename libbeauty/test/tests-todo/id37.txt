@@ -1,0 +1,8 @@
+# RUN: test_id %s | FileCheck %s
+
+# TEST CASE 0x37
+# imul   %edx  This is imul %edx * %eax -> %edx:%eax. 
+# CHECK: getInstruction Size = 0x2
+# CHECK: result: len=30:// 0x0000:CMPf r0x40/8, i0xf/8
+# CHECK: inst_size = 1
+0xf7 0xea

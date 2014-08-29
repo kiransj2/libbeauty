@@ -9,7 +9,7 @@ int test22a ( int value ) {
 
 int test22b ( int value ) {
 	int local;
-	local = test21a(value);
+	local = test22a(value);
 	local = local + 0x100;
 	return local;
 }

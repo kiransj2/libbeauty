@@ -806,12 +806,13 @@ int main(int argc, char *argv[])
 	setLogLevel();
 
 	if (argc != 2) {
-		debug_print(DEBUG_MAIN, 1, "Syntax error\n");
-		debug_print(DEBUG_MAIN, 1, "Usage: test_id filename\n");
+		printf("Syntax error\n");
+		printf("Usage: test_id filename\n");
 		exit(1);
 	}
 	if (argv[1]) {
-		if ((fin = fopen(argv[1], "r")) < 0) {
+		fin = fopen(argv[1], "r");
+		if (!fin) {
 			printf("File not found: %s\n", argv[1]);
 			exit(1);
 		}
@@ -850,7 +851,7 @@ int main(int argc, char *argv[])
 //	debug_print(DEBUG_MAIN, 1, "size_of test_data = 0x%lx\n", sizeof(test_data));
 	debug_print(DEBUG_MAIN, 1, "size_of struct test_data_s = 0x%lx\n", sizeof(struct test_data_s));
 //	debug_print(DEBUG_MAIN, 1, "number of test_data entries = 0x%lx\n", sizeof(test_data) / sizeof(struct test_data_s));
-	debug_print(DEBUG_MAIN, 1, "test_data_no = 0x%lx\n", test_data_no);
+	debug_print(DEBUG_MAIN, 1, "test_data_no = 0x%x\n", test_data_no);
 
 //	LLVMInitializeAllTargetInfos();
 //	LLVMInitializeAllTargetMCs();
@@ -908,7 +909,7 @@ int main(int argc, char *argv[])
 		if (!test_data_cur->valid) {
 			debug_print(DEBUG_MAIN, 1, "Test input data absent\n");
 		}
-		debug_print(DEBUG_MAIN, 1, "\n****** START test data 0x%x ******\n", l);
+		debug_print(DEBUG_MAIN, 1, "\n****** START test data %s:0x%x ******\n", argv[1], l);
 
 		buffer_size = test_data_cur->bytes_size;
 		buffer = &(test_data_cur->bytes[0]);
